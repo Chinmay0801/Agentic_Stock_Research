@@ -33,9 +33,10 @@ cp .env.example .env
 # 3. Start everything with Docker
 docker-compose up --build
 
-# 4. In another terminal, run migrations
+# 4. In another terminal, run migrations and seed demo data
 docker-compose exec web python manage.py migrate
 docker-compose exec web python manage.py createsuperuser
+docker-compose exec web python backend/seed_demo_data.py
 ```
 
 ### Access
@@ -96,7 +97,7 @@ npm run dev
 
 | Member | Focus |
 |--------|-------|
-| Teammate 1 | Backend API & Database |
+| Chinmay (230905264) | Full Stack Development & AI Integration |
 | Teammate 2 | AI Agents & Data Providers |
 | Teammate 3 | Frontend Dashboard |
 
