@@ -23,8 +23,8 @@ An autonomous financial analyst powered by AI agents. The platform automates sto
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/WPL_Project.git
-cd WPL_Project
+git clone https://github.com/Chinmay0801/Agentic_Stock_Research.git
+cd Agentic_Stock_Research
 
 # 2. Create your .env file
 cp .env.example .env
