@@ -6,7 +6,7 @@ Each task runs asynchronously via Celery + Redis.
 """
 from celery import shared_task
 from django.utils import timezone
-from apps.market_data.utils import MarketDataManager
+from apps.market_data.utils import MarketDataManager, SymbolNotFound
 from apps.agents.agents_logic import (
     FundamentalAgent,
     SentimentAgent,
@@ -42,7 +42,20 @@ def run_research_pipeline(self, report_id):
 
         # 1. Fetch Market Data
         manager = MarketDataManager(report.ticker.symbol)
-        mkt_data = manager.fetch_data()
+        try:
+            mkt_data = manager.fetch_data()
+        except SymbolNotFound as exc:
+            report.status = 'failed'
+            report.summary = str(exc)
+            report.save()
+            return str(exc)
+
+        # fetch_data may resolve 'TCS' to 'TCS.NS'; keep the report pointed at
+        # the listing the snapshot was actually taken from.
+        if manager.ticker and manager.ticker.pk != report.ticker.pk:
+            report.ticker = manager.ticker
+            report.save(update_fields=['ticker'])
+
         manager.save_to_db(mkt_data)
 
         # 2. Define Agents

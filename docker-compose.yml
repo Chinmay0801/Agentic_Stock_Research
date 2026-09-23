@@ -1,18 +1,16 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: stock_research
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-stock_research}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -36,6 +34,20 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Opt out of the SQLite default in development.py and use the db service.
+      USE_SQLITE: "0"
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      # Migrations run on start; set to 1 to also seed demo data.
+      SEED_DEMO_DATA: "${SEED_DEMO_DATA:-1}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/research/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +61,13 @@ services:
       - ./backend:/app
     env_file:
       - .env
+    environment:
+      USE_SQLITE: "0"
+      POSTGRES_HOST: db
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      # The web service owns migrations and seeding; the worker just waits.
+      SEED_DEMO_DATA: "0"
     depends_on:
       db:
         condition: service_healthy
@@ -61,8 +80,12 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend/src:/app/src
+    environment:
+      # Vite proxies /api to the backend container, not to localhost.
+      VITE_PROXY_TARGET: http://web:8000
     depends_on:
-      - web
+      web:
+        condition: service_started
 
 volumes:
   postgres_data:

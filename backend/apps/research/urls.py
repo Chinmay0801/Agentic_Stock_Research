@@ -10,5 +10,8 @@ router.register('reports', views.ResearchReportViewSet, basename='report')
 
 urlpatterns = [
     path('quick-demo/', views.quick_demo_report, name='quick-demo'),
+    path('compare/', views.compare_stocks, name='compare'),
+    path('quotes/', views.stock_quotes, name='quotes'),
+    path('health/', views.health, name='health'),
     path('', include(router.urls)),
 ]

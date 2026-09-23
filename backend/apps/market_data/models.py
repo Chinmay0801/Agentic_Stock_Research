@@ -9,6 +9,10 @@ class MarketDataSnapshot(models.Model):
         related_name='market_snapshots',
     )
     price = models.DecimalField(max_digits=12, decimal_places=4)
+    currency = models.CharField(
+        max_length=8, default='USD',
+        help_text='ISO code reported by the exchange, e.g. USD or INR.',
+    )
     open_price = models.DecimalField(max_digits=12, decimal_places=4, null=True)
     high = models.DecimalField(max_digits=12, decimal_places=4, null=True)
     low = models.DecimalField(max_digits=12, decimal_places=4, null=True)

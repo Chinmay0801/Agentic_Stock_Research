@@ -53,3 +53,8 @@ postgres_data/
 # ========================
 *.tmp
 *.bak
+
+# ========================
+# Personal notes (not for the public repo)
+# ========================
+study_guide.md

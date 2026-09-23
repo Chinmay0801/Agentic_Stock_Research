@@ -64,7 +64,7 @@ function ResearchReport() {
           <div className="snapshot-metrics">
             <div className="snapshot-item">
               <span className="snap-label">Current Price</span>
-              <span className="snap-value">${report.snapshot.price}</span>
+              <span className="snap-value">{report.snapshot.currency || '$'}{report.snapshot.price}</span>
             </div>
             <div className="snapshot-item">
               <span className="snap-label">Market Cap</span>
@@ -96,7 +96,7 @@ function ResearchReport() {
         <div className="report-main-col">
           {/* Feature 6: Price Chart */}
           <section className="card-static chart-section">
-            <h2>📈 30-Day Price Trend (Mocked)</h2>
+            <h2>📈 30-Session Price Trend</h2>
             <div className="chart-container">
               {report.chart_data ? (
                 <ResponsiveContainer width="100%" height={250}>

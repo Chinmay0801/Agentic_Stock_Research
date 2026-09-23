@@ -1,94 +1,212 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { API_BASE } from '../services/api'
 import './Dashboard.css'
+import './Compare.css'
 
-const MOCK_DB = {
-  AAPL: { revenue: '↑ 8%', profit: '↑ 12%', risk: 'Low', pe: 32.1, debt: 'Medium', sentiment: 'Positive' },
-  MSFT: { revenue: '↑ 14%', profit: '↑ 18%', risk: 'Low', pe: 37.8, debt: 'Low', sentiment: 'Positive' },
-  NVDA: { revenue: '↑ 120%', profit: '↑ 140%', risk: 'High', pe: 68.2, debt: 'Low', sentiment: 'Very Positive' },
-  TSLA: { revenue: '↑ 3%', profit: '↓ 5%', risk: 'High', pe: 72.5, debt: 'Medium', sentiment: 'Neutral' },
-  TCS: { revenue: '↑ 6%', profit: '↑ 8%', risk: 'Low', pe: 30.5, debt: 'Low', sentiment: 'Positive' },
-  INFY: { revenue: '↑ 4%', profit: '→ 0%', risk: 'Medium', pe: 24.2, debt: 'Low', sentiment: 'Neutral' },
-  RELIANCE: { revenue: '↑ 11%', profit: '↑ 9%', risk: 'Medium', pe: 28.4, debt: 'High', sentiment: 'Positive' },
+// Quick picks, grouped by market — comparisons only run within one market.
+const PRESETS = [
+  { market: '🇮🇳 India (NSE)', pairs: [['TCS', 'INFY'], ['RELIANCE', 'HDFCBANK'], ['WIPRO', 'HCLTECH']] },
+  { market: '🇺🇸 United States', pairs: [['AAPL', 'MSFT'], ['NVDA', 'AMD'], ['GOOGL', 'META']] },
+]
+
+// Values that are already formatted strings, or need a unit appended.
+const SUFFIXED = {
+  'revenue_growth': '%', 'earnings_growth': '%', 'profit_margin': '%',
+  'return_on_equity': '%', 'dividend_yield': '%', 'volatility': '%',
+}
+
+function formatCell(row, side, currency) {
+  const value = row[side]
+  if (value === null || value === undefined) return '—'
+  if (row.key === 'price') return `${currency}${value}`
+  if (SUFFIXED[row.key]) return `${value}${SUFFIXED[row.key]}`
+  return String(value)
 }
 
 function Compare() {
-  const [stock1, setStock1] = useState('TCS')
-  const [stock2, setStock2] = useState('INFY')
+  const [ticker1, setTicker1] = useState('TCS')
+  const [ticker2, setTicker2] = useState('INFY')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const s1 = MOCK_DB[stock1]
-  const s2 = MOCK_DB[stock2]
+  const runComparison = async (e, a = null, b = null) => {
+    if (e) e.preventDefault()
+    const left = (a || ticker1).trim()
+    const right = (b || ticker2).trim()
+
+    if (!left || !right) {
+      setError('Enter two ticker symbols to compare.')
+      return
+    }
+
+    setTicker1(left)
+    setTicker2(right)
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch(`${API_BASE}/api/research/compare/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker1: left, ticker2: right }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        // Covers unknown tickers (404) and cross-market attempts (400).
+        setError(data.detail || 'Comparison failed.')
+        setResult(null)
+      } else {
+        setResult(data)
+      }
+    } catch {
+      setError('Failed to connect to Django server. Is it running?')
+      setResult(null)
+    }
+
+    setLoading(false)
+  }
 
   return (
-    <div className="dashboard fade-in" style={{ paddingBottom: '3rem' }}>
-      <Link to="/" className="back-link" style={{ marginBottom: '1.5rem', display: 'inline-block', color: 'var(--text-muted)', textDecoration: 'none' }}>← Back to Dashboard</Link>
-      <header className="dashboard-header" style={{ marginBottom: '2rem' }}>
+    <div className="dashboard fade-in compare-page">
+      <Link to="/" className="back-link compare-back">← Back to Dashboard</Link>
+
+      <header className="dashboard-header compare-header">
         <div className="header-content">
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>⚖️ Compare Stocks</h1>
-          <p className="subtitle">Side-by-side metric comparison to identify the better investment</p>
+          <h1 className="compare-title">⚖️ Compare Stocks</h1>
+          <p className="subtitle">
+            Live side-by-side metrics. Both stocks must trade in the same market —
+            Indian with Indian, US with US.
+          </p>
         </div>
       </header>
 
-      <section className="card" style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <div className="input-group" style={{ flex: 1 }}>
-          <label>Stock 1</label>
-          <select className="input-field" value={stock1} onChange={e => setStock1(e.target.value)}>
-            {Object.keys(MOCK_DB).map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>VS</span>
-        <div className="input-group" style={{ flex: 1 }}>
-          <label>Stock 2</label>
-          <select className="input-field" value={stock2} onChange={e => setStock2(e.target.value)}>
-            {Object.keys(MOCK_DB).map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+      <section className="card compare-controls">
+        <form onSubmit={runComparison} className="compare-form">
+          <div className="input-group compare-input">
+            <label>Stock 1</label>
+            <input
+              className="input-field"
+              value={ticker1}
+              onChange={(e) => setTicker1(e.target.value)}
+              placeholder="e.g. TCS"
+            />
+          </div>
+          <span className="compare-vs">VS</span>
+          <div className="input-group compare-input">
+            <label>Stock 2</label>
+            <input
+              className="input-field"
+              value={ticker2}
+              onChange={(e) => setTicker2(e.target.value)}
+              placeholder="e.g. INFY"
+            />
+          </div>
+          <button type="submit" className="btn btn-primary compare-submit" disabled={loading}>
+            {loading ? 'Fetching…' : 'Compare'}
+          </button>
+        </form>
+
+        <div className="compare-presets">
+          {PRESETS.map((group) => (
+            <div key={group.market} className="preset-group">
+              <span className="preset-market">{group.market}</span>
+              {group.pairs.map(([a, b]) => (
+                <button
+                  key={`${a}-${b}`}
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => runComparison(null, a, b)}
+                  disabled={loading}
+                >
+                  {a} vs {b}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       </section>
 
-      {s1 && s2 && (
-        <section className="card-static" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr>
-                <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>Metric</th>
-                <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: 'var(--accent-blue)', fontSize: '1.2rem' }}>{stock1}</th>
-                <th style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: 'var(--accent-purple)', fontSize: '1.2rem' }}>{stock2}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 500 }}>Revenue Growth</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s1.revenue.includes('↑') ? 'var(--accent-green)' : 'inherit' }}>{s1.revenue}</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s2.revenue.includes('↑') ? 'var(--accent-green)' : 'inherit' }}>{s2.revenue}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 500 }}>Profitability</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s1.profit.includes('↑') ? 'var(--accent-green)' : s1.profit.includes('↓') ? 'var(--accent-red)' : 'inherit' }}>{s1.profit}</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s2.profit.includes('↑') ? 'var(--accent-green)' : s2.profit.includes('↓') ? 'var(--accent-red)' : 'inherit' }}>{s2.profit}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 500 }}>Risk Level</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s1.risk === 'High' ? 'var(--accent-red)' : s1.risk === 'Low' ? 'var(--accent-green)' : 'var(--accent-yellow)' }}>{s1.risk}</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', color: s2.risk === 'High' ? 'var(--accent-red)' : s2.risk === 'Low' ? 'var(--accent-green)' : 'var(--accent-yellow)' }}>{s2.risk}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 500 }}>P/E Ratio</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>{s1.pe}</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>{s2.pe}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 500 }}>Debt</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>{s1.debt}</td>
-                <td style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>{s2.debt}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: '1rem', fontWeight: 500 }}>Market Sentiment</td>
-                <td style={{ padding: '1rem' }}><span className={`badge ${s1.sentiment.includes('Positive') ? 'badge-completed' : s1.sentiment.includes('Neutral') ? 'badge-pending' : 'badge-failed'}`}>{s1.sentiment}</span></td>
-                <td style={{ padding: '1rem' }}><span className={`badge ${s2.sentiment.includes('Positive') ? 'badge-completed' : s2.sentiment.includes('Neutral') ? 'badge-pending' : 'badge-failed'}`}>{s2.sentiment}</span></td>
-              </tr>
-            </tbody>
-          </table>
+      {error && (
+        <section className="card-static compare-error">
+          <span className="compare-error-icon">⚠️</span>
+          <p>{error}</p>
         </section>
+      )}
+
+      {loading && (
+        <section className="card-static compare-loading">
+          <div className="spinner"></div>
+          <p>Fetching live data for both stocks…</p>
+        </section>
+      )}
+
+      {result && !loading && (
+        <>
+          <section className="card-static compare-verdict-bar">
+            <span className="badge badge-completed">{result.market} · {result.currency_code}</span>
+            <p className="compare-verdict">{result.verdict}</p>
+          </section>
+
+          <section className="card-static compare-table-wrap">
+            <table className="compare-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th className="col-left">
+                    {result.left.symbol}
+                    <span className="col-company">{result.left.company_name}</span>
+                  </th>
+                  <th className="col-right">
+                    {result.right.symbol}
+                    <span className="col-company">{result.right.company_name}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="metric-name">Exchange</td>
+                  <td>{result.left.exchange || '—'}</td>
+                  <td>{result.right.exchange || '—'}</td>
+                </tr>
+                <tr>
+                  <td className="metric-name">Sector</td>
+                  <td>{result.left.sector || '—'}</td>
+                  <td>{result.right.sector || '—'}</td>
+                </tr>
+                {result.rows.map((row) => (
+                  <tr key={row.key}>
+                    <td className="metric-name">{row.label}</td>
+                    <td className={row.better === 'left' ? 'cell-better' : ''}>
+                      {formatCell(row, 'left', result.currency)}
+                      {row.better === 'left' && <span className="better-tick">✓</span>}
+                    </td>
+                    <td className={row.better === 'right' ? 'cell-better' : ''}>
+                      {formatCell(row, 'right', result.currency)}
+                      {row.better === 'right' && <span className="better-tick">✓</span>}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="metric-name">Risk Level</td>
+                  <td className={`risk-${result.left.risk.toLowerCase()}`}>{result.left.risk}</td>
+                  <td className={`risk-${result.right.risk.toLowerCase()}`}>{result.right.risk}</td>
+                </tr>
+                <tr>
+                  <td className="metric-name">Analyst Consensus</td>
+                  <td><span className={`badge verdict-${result.left.recommendation.toLowerCase()}`}>{result.left.recommendation}</span></td>
+                  <td><span className={`badge verdict-${result.right.recommendation.toLowerCase()}`}>{result.right.recommendation}</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="compare-footnote">
+              ✓ marks the stronger value. Price and market cap aren't scored — bigger
+              isn't better. Data from Yahoo Finance; not investment advice.
+            </p>
+          </section>
+        </>
       )}
     </div>
   )

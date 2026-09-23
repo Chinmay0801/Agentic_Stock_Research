@@ -19,5 +19,5 @@ openai>=1.0
 google-generativeai>=0.3
 
 # Data Providers
-yfinance>=0.2
+yfinance>=0.2,<2.0
 requests>=2.31

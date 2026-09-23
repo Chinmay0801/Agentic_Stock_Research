@@ -9,7 +9,6 @@ class MarketDataViewSet(viewsets.ReadOnlyModelViewSet):
     """Retrieve cached market data snapshots."""
     queryset = MarketDataSnapshot.objects.all()
     serializer_class = MarketDataSnapshotSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -23,7 +22,6 @@ class NewsArticleViewSet(viewsets.ReadOnlyModelViewSet):
     """Retrieve news articles, optionally filtered by ticker."""
     queryset = NewsArticle.objects.all()
     serializer_class = NewsArticleSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         qs = super().get_queryset()

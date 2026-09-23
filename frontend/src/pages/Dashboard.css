@@ -76,3 +76,30 @@
 .watchlist-item:hover { border-color: var(--accent-blue); }
 .watchlist-sym { font-weight: 600; color: var(--accent-blue); }
 .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+
+/* Watchlist live quotes */
+.watchlist-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.watchlist-price {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.watchlist-price.muted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.watchlist-refresh {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.text-green { color: var(--accent-green); }
+.text-red { color: var(--accent-red); }

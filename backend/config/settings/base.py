@@ -72,7 +72,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — default to PostgreSQL; overridden in dev settings if needed
+# Database — PostgreSQL by default. `development.py` swaps in SQLite unless
+# USE_SQLITE=0, which is how docker-compose opts into the real Postgres service.
 # ---------------------------------------------------------------------------
 DATABASES = {
     'default': {
@@ -113,11 +114,15 @@ STATIC_URL = 'static/'
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',  # Open for demo — change to IsAuthenticated in production
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',  # Enables the browsable API UI
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,

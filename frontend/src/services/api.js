@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+// Empty by default: requests stay same-origin and reach Django through the
+// Vite dev proxy (or a reverse proxy in production). Set VITE_API_URL to an
+// absolute origin when the API is deployed on a different host.
+export const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
