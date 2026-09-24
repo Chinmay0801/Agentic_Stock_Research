@@ -31,11 +31,13 @@ suffixes automatically: type `TCS`, get `TCS.NS` priced in ₹.
 | Database | PostgreSQL (SQLite for local dev) | Reports, snapshots, news |
 | AI Core | LangChain + Gemini/OpenAI | Multi-agent reasoning |
 | Market Data | yfinance (Yahoo Finance) | Quotes, fundamentals, history, news |
-| Frontend | React 18 + Vite + Recharts | Dashboard, report view, comparison |
+| Frontend | React 19 + Vite 8 + Recharts | Dashboard, report view, comparison |
 
 ---
 
 ## Quick Start
+
+> For the full walkthrough — optional Celery worker, running tests, troubleshooting — see **[HOW_TO_RUN.md](HOW_TO_RUN.md)**.
 
 ### Option A — Docker (one command)
 
@@ -48,6 +50,10 @@ docker compose up --build
 
 That's it. The backend container waits for PostgreSQL, applies migrations,
 creates `admin` / `admin123`, and seeds live market data before serving.
+
+> If your `DJANGO_SECRET_KEY` contains a `$`, escape it as `$$` in `.env` —
+> Compose reads `$` as a variable reference and would truncate the key inside
+> the containers.
 
 ### Option B — Local (no Docker, no PostgreSQL, no Redis)
 
@@ -171,10 +177,17 @@ cd backend
 python manage.py test apps
 ```
 
-48 tests, no network access — `yfinance.Ticker` is replaced with a fixture
-registry. Coverage includes symbol resolution and ADR precedence, both yfinance
-news schemas, volatility maths, comparison scoring direction, and every API
-error path.
+48 tests in well under a second, with **no network access** — `yfinance.Ticker`
+is replaced by a fixture registry, so the suite is deterministic and can exercise
+malformed upstream responses that a live API would never return on demand.
+
+Coverage includes symbol resolution and ADR precedence, both yfinance news
+schemas, volatility maths, comparison scoring direction, and every API error path.
+
+```bash
+python manage.py test apps.market_data                  # resolution + parsing
+python manage.py test apps.research.tests.CompareTests  # one class
+```
 
 ---
 
@@ -189,6 +202,8 @@ All settings have working defaults; see [.env.example](.env.example).
 | `SEED_DEMO_DATA` | `1` | Seeds live data on container start |
 | `GEMINI_API_KEY` | — | Optional; only the Celery agent pipeline uses it |
 | `VITE_API_URL` | empty | Set to an absolute origin if the API is on another host |
+| `VITE_PROXY_TARGET` | `http://localhost:8000` | Vite dev-proxy target; Docker sets `http://web:8000` |
+| `POSTGRES_HOST` | `localhost` | `db` inside Docker |
 
 Settings are layered: `base.py` (PostgreSQL from env) → `development.py`
 (SQLite unless `USE_SQLITE=0`) → `production.py`.
@@ -205,10 +220,15 @@ backend/
     agents/         LangChain agents + Celery tasks
     users/          custom user model
   config/settings/  base / development / production
+  entrypoint.sh     waits for Postgres, migrates, seeds
 frontend/
   src/pages/        Dashboard, ResearchReport, Compare
   src/services/     axios client, API base resolution
 ```
+
+Tests live beside the code they cover: `apps/market_data/tests.py` (resolution,
+news parsing, persistence) and `apps/research/tests.py` (API contracts,
+comparison scoring).
 
 ---
 
@@ -219,4 +239,6 @@ frontend/
 - Demo auth is `localStorage`-based, not Django auth — it's a UI demo, not a
   security boundary.
 - Headline sentiment is keyword-based unless the Celery agent pipeline runs.
+- The synchronous report path blocks a request thread for roughly a second per
+  Yahoo call and has no caching yet — fine for a demo, not for real traffic.
 - Not investment advice.
